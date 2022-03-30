@@ -17,8 +17,6 @@ import { PostCSSConfigResult, resolvePostcssConfig } from './postcss';
 const styleUpdateEvent = (fileId: string) =>
   `vanilla-extract-style-update:${fileId}`;
 
-const virtualPrefix = 'virtual:vanilla-extract:';
-
 interface Options {
   identifiers?: IdentifierOption;
 }
@@ -64,16 +62,14 @@ export function vanillaExtractPlugin({ identifiers }: Options = {}): Plugin {
       packageInfo = getPackageInfo(config.root);
     },
     resolveId(id) {
-      if (id.indexOf(virtualPrefix) === 0) {
+      if (id.indexOf(virtualExt) !== -1) {
         return id;
       }
     },
     load(id) {
-      if (id.indexOf(virtualPrefix) === 0) {
-        const fileScopeId = id.slice(
-          virtualPrefix.length,
-          id.indexOf(virtualExt),
-        );
+      const extensionIndex = id.indexOf(virtualExt);
+      if (extensionIndex > 0) {
+        const fileScopeId = id.substring(0, extensionIndex);
 
         if (!cssMap.has(fileScopeId)) {
           throw new Error(`Unable to locate ${fileScopeId} in the CSS map.`);
@@ -99,7 +95,7 @@ export function vanillaExtractPlugin({ identifiers }: Options = {}): Plugin {
 
           import.meta.hot.on('${styleUpdateEvent(fileScopeId)}', (css) => {
             inject(css);
-          });   
+          });
         `;
       }
 
@@ -149,11 +145,14 @@ export function vanillaExtractPlugin({ identifiers }: Options = {}): Plugin {
           identifiers ?? (config.mode === 'production' ? 'short' : 'debug'),
         serializeVirtualCssPath: async ({ fileScope, source }) => {
           // This file id is requested through a URL where ".." isn't valid.
-          const fileId = stringifyFileScope(fileScope).replace(
+          const fileId = fileScope.filePath.replace(
             /\.\./g,
             '_dir_up_',
           );
-          const id = `${virtualPrefix}${fileId}${virtualExt}`;
+          const id = stringifyFileScope( {
+            packageName: fileScope.packageName,
+            filePath:  `${fileId}${virtualExt}`
+          });
 
           let cssSource = source;
 

@@ -15,11 +15,19 @@ export function stringifyFileScope({
   packageName,
   filePath,
 }: FileScope): string {
-  return packageName ? `${filePath}$$$${packageName}` : filePath;
+  return packageName ? `${filePath}?package=${packageName}` : filePath;
 }
 
 export function parseFileScope(serialisedFileScope: string): FileScope {
-  const [filePath, packageName] = serialisedFileScope.split('$$$');
+  const match = serialisedFileScope.match(/^(?<filePath>.*)\?package=(?<packageName>.*)$/) ?? [];
+
+  if (!match || !match.groups) {
+    return {
+      filePath: serialisedFileScope
+    }
+  }
+
+  const { filePath, packageName } = match.groups;
 
   return {
     filePath,
